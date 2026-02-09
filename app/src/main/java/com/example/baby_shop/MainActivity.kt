@@ -1,0 +1,167 @@
+package com.example.baby_shop
+
+import android.content.Intent
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Button
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.tooling.preview.Preview
+import com.example.baby_shop.ui.theme.Baby_ShopTheme
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            Baby_ShopTheme {
+                // Get the context from LocalContext
+                val context = LocalContext.current
+
+
+
+                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    )
+                    {
+                        Greeting(name = "Android")
+
+                        MainApp()
+
+                        // Use the context when defining the navigation action
+                        login(onNavigateToLogin = {
+                            val intent = Intent(context, LoginActivity::class.java)
+                            context.startActivity(intent)
+                        })
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MainApp() {
+    val context = LocalContext.current
+    var selectedItem by remember { mutableStateOf(0) }
+    val items = listOf("Shop", "My Item", "Account")
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                items.forEachIndexed { index, item ->
+                    NavigationBarItem(
+                        icon = {
+                            when (item) {
+                                "Shop" -> Icon(Icons.Filled.Home, contentDescription = "Shop")
+                                "My Item" -> Icon(Icons.Filled.ShoppingCart, contentDescription = "My Item/Cart")
+                                "Account" -> Icon(Icons.Filled.AccountCircle, contentDescription = "Account")
+                            }
+                        },
+                        label = { Text(item) },
+                        selected = selectedItem == index,
+                        onClick = {
+                            selectedItem = index
+                            // Xử lý điều hướng ở đây
+                            if (item == "Account") {
+                                val intent = Intent(context, LoginActivity::class.java)
+                                context.startActivity(intent)
+                            }
+                            // Thêm logic cho "My Item" sau này
+                        }
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
+        // the Mainsreen will show in here
+        // Hiện tại, chúng ta sẽ hiển thị màn hình chính (Shop)
+     }
+}
+
+@Composable
+fun Greeting(name: String, modifier: Modifier = Modifier) {
+    Text(
+        text = "Hello Team!",
+        modifier = Modifier
+            .padding( bottom = 30.dp)
+            .fillMaxWidth(),
+        color = Color.Blue,
+        fontSize = 50.sp,
+        fontWeight = FontWeight.Bold,
+        textAlign = TextAlign.Center,
+    )
+}
+
+@Composable
+fun login(onNavigateToLogin: () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Button(onClick = onNavigateToLogin) {
+            Image(
+                painter = painterResource(id = R.drawable.ic_cart),
+                contentDescription = "Cart button Icon",
+                modifier = Modifier.size(20.dp))
+            Text(
+                text = "Login",
+                modifier = Modifier.padding(start = 10.dp))
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun GreetingPreview() {
+    Baby_ShopTheme {
+
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        )
+        {
+            Greeting("Android")
+            login(onNavigateToLogin = {})
+            MainApp()
+        }
+
+    }
+}
