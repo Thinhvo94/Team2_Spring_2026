@@ -1,10 +1,22 @@
 package com.example.baby_shop
 
+import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+
+// Add Product data class
+data class Product(
+    val id: Long,
+    val title: String,
+    val description: String,
+    val price: String,
+    val category: String,
+    val condition: String,
+    val userId: Long
+)
 
 // Extends SQLiteOpenHelper to manage DB
 class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
@@ -19,13 +31,13 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         private const val TABLE_CART_ITEMS = "cart_items"
 
         // Common column name
-        private const val COLUMN_ID = "id" // <-- FIX: Define COLUMN_ID here
+        private const val COLUMN_ID = "id"
     }
 
     override fun onCreate(db: SQLiteDatabase) {
 
         val createUsersTable = ("CREATE TABLE $TABLE_USERS (" +
-                "$COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT, " + // Use the constant
+                "$COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "name TEXT, " +
                 "email TEXT, " +
                 "password TEXT, " +
@@ -33,23 +45,52 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         db.execSQL(createUsersTable)
 
         val createListingsTable = ("CREATE TABLE $TABLE_LISTINGS (" +
-                "$COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT, " + // Use the constant
+                "$COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "title TEXT, " +
                 "description TEXT, " +
                 "price TEXT, " +
                 "category TEXT, " +
                 "condition TEXT, " +
                 "userId INTEGER, " +
-                "FOREIGN KEY(userId) REFERENCES $TABLE_USERS($COLUMN_ID))") // Use the constant
+                "FOREIGN KEY(userId) REFERENCES $TABLE_USERS($COLUMN_ID))")
         db.execSQL(createListingsTable)
 
 
         val createCartTable = ("CREATE TABLE $TABLE_CART_ITEMS (" +
-                "$COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT, " + // Use the constant
+                "$COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "listingId INTEGER, " +
                 "quantity INTEGER, " +
-                "FOREIGN KEY(listingId) REFERENCES $TABLE_LISTINGS($COLUMN_ID))") // Use the constant
+                "FOREIGN KEY(listingId) REFERENCES $TABLE_LISTINGS($COLUMN_ID))")
         db.execSQL(createCartTable)
+
+        // Add a sample user
+        val sampleUser = ContentValues()
+        sampleUser.put("name", "Test User")
+        sampleUser.put("email", "test@example.com")
+        sampleUser.put("password", "password")
+        sampleUser.put("role", "user")
+        val userId = db.insert(TABLE_USERS, null, sampleUser)
+
+        // Add sample listings for the user
+        if (userId != -1L) {
+            val sampleData = ContentValues()
+            sampleData.put("title", "Baby Pram")
+            sampleData.put("description", "A comfortable pram for your baby.")
+            sampleData.put("price", "$150.00")
+            sampleData.put("category", "Strollers")
+            sampleData.put("condition", "New")
+            sampleData.put("userId", userId)
+            db.insert(TABLE_LISTINGS, null, sampleData)
+
+            sampleData.clear()
+            sampleData.put("title", "Baby Crib")
+            sampleData.put("description", "A safe and cozy crib.")
+            sampleData.put("price", "$250.00")
+            sampleData.put("category", "Furniture")
+            sampleData.put("condition", "New")
+            sampleData.put("userId", userId)
+            db.insert(TABLE_LISTINGS, null, sampleData)
+        }
     }
 
 
@@ -91,20 +132,29 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     }
 
     // READ
-    fun getAllListings(): List<String> {
+    @SuppressLint("Range")
+    fun getAllListings(): List<Product> {
+        val productList = mutableListOf<Product>()
         val db = this.readableDatabase
-        val cursor = db.rawQuery("SELECT * FROM $TABLE_LISTINGS", null)
-        // ... logic to parse cursor into a list ...
-        cursor.close()
-        return listOf()
-    }
+        val cursor: Cursor = db.rawQuery("SELECT * FROM $TABLE_LISTINGS", null)
 
-    fun getUser(userId: Long): List<String> {
-        val db = this.readableDatabase
-        val cursor = db.rawQuery("SELECT * FROM $TABLE_LISTINGS WHERE userId = ?", arrayOf(userId.toString()))
-        // ... logic to parse cursor into a list ...
+        if (cursor.moveToFirst()) {
+            do {
+                val product = Product(
+                    id = cursor.getLong(cursor.getColumnIndex(COLUMN_ID)),
+                    title = cursor.getString(cursor.getColumnIndex("title")),
+                    description = cursor.getString(cursor.getColumnIndex("description")),
+                    price = cursor.getString(cursor.getColumnIndex("price")),
+                    category = cursor.getString(cursor.getColumnIndex("category")),
+                    condition = cursor.getString(cursor.getColumnIndex("condition")),
+                    userId = cursor.getLong(cursor.getColumnIndex("userId"))
+                )
+                productList.add(product)
+            } while (cursor.moveToNext())
+        }
         cursor.close()
-        return listOf()
+        db.close()
+        return productList
     }
 
     // UPDATE
@@ -117,16 +167,12 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         contentValues.put("condition", condition)
         contentValues.put("userId", userId)
 
-        // Use the defined constant
         return db.update(TABLE_LISTINGS, contentValues, "$COLUMN_ID = ?", arrayOf(id.toString()))
     }
-
-    //fun updateUser
 
     // DELETE
     fun deleteListing(id: Int): Int {
         val db = this.writableDatabase
-        // Use the defined constant
         return db.delete(TABLE_LISTINGS, "$COLUMN_ID = ?", arrayOf(id.toString()))
     }
 }

@@ -125,8 +125,6 @@ fun RegisterScreen(dbHelper: DatabaseHelper) {
 @Composable
 fun RegisterScreenPreview() {
     Baby_ShopTheme {
-        // Trong preview, chúng ta không có context thực, nên cần tạo một db giả
-        // Hoặc đơn giản là không truyền db và comment out logic trong onClick để xem giao diện
         val context = LocalContext.current
         RegisterScreen(dbHelper = DatabaseHelper(context))
     }

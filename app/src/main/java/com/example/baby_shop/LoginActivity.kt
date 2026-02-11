@@ -24,6 +24,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import android.content.Intent
+import androidx.compose.ui.tooling.preview.Preview
 
 
 class LoginActivity : ComponentActivity() {
@@ -116,4 +117,10 @@ fun RegisterNavigation() {
                 }
         }
     )
+}
+
+@Preview(showBackground = true)
+@Composable
+fun LoginScreenPreview() {
+    LoginScreen()
 }
