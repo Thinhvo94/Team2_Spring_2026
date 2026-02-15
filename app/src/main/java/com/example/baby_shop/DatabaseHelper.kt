@@ -7,7 +7,6 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
-// Add Product data class
 data class Product(
     val id: Long,
     val title: String,
@@ -15,7 +14,8 @@ data class Product(
     val price: String,
     val category: String,
     val condition: String,
-    val userId: Long
+    val userId: Long,
+    val imageUrl: String?
 )
 
 // Extends SQLiteOpenHelper to manage DB
@@ -23,7 +23,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     companion object {
         private const val DATABASE_NAME = "ListingsDatabase.db"
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2
 
         // Table Names
         private const val TABLE_USERS = "users"
@@ -51,6 +51,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 "price TEXT, " +
                 "category TEXT, " +
                 "condition TEXT, " +
+                "imageUrl TEXT, " +
                 "userId INTEGER, " +
                 "FOREIGN KEY(userId) REFERENCES $TABLE_USERS($COLUMN_ID))")
         db.execSQL(createListingsTable)
@@ -79,6 +80,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             sampleData.put("price", "$150.00")
             sampleData.put("category", "Strollers")
             sampleData.put("condition", "New")
+            sampleData.put("imageUrl", "baby_pram")
             sampleData.put("userId", userId)
             db.insert(TABLE_LISTINGS, null, sampleData)
 
@@ -88,6 +90,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             sampleData.put("price", "$250.00")
             sampleData.put("category", "Furniture")
             sampleData.put("condition", "New")
+            sampleData.put("imageUrl", "baby_crib")
             sampleData.put("userId", userId)
             db.insert(TABLE_LISTINGS, null, sampleData)
         }
@@ -95,10 +98,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_USERS")
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_LISTINGS")
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_CART_ITEMS")
-        onCreate(db)
+        if (oldVersion < 2) {
+            db.execSQL("ALTER TABLE $TABLE_LISTINGS ADD COLUMN imageUrl TEXT;")
+        }
     }
 
 
@@ -116,7 +118,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return result
     }
 
-    fun addListing(title: String, description: String, price: String, category: String, condition: String, userId: Long): Long {
+    fun addListing(title: String, description: String, price: String, category: String, condition: String, imageUrl: String, userId: Long): Long {
         val db = this.writableDatabase
         val contentValues = ContentValues()
         contentValues.put("title", title)
@@ -124,6 +126,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         contentValues.put("price", price)
         contentValues.put("category", category)
         contentValues.put("condition", condition)
+        contentValues.put("imageUrl", imageUrl)
         contentValues.put("userId", userId)
 
         val success = db.insert(TABLE_LISTINGS, null, contentValues)
@@ -147,6 +150,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                     price = cursor.getString(cursor.getColumnIndex("price")),
                     category = cursor.getString(cursor.getColumnIndex("category")),
                     condition = cursor.getString(cursor.getColumnIndex("condition")),
+                    imageUrl = cursor.getString(cursor.getColumnIndex("imageUrl")) ?: "",
                     userId = cursor.getLong(cursor.getColumnIndex("userId"))
                 )
                 productList.add(product)
@@ -158,13 +162,14 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     }
 
     // UPDATE
-    fun updateListing(id: Int, title: String, description: String, price: String, condition: String, userId: Long): Int {
+    fun updateListing(id: Int, title: String, description: String, price: String, condition: String, imageUrl: String, userId: Long): Int {
         val db = this.writableDatabase
         val contentValues = ContentValues()
         contentValues.put("title", title)
         contentValues.put("description", description)
         contentValues.put("price", price)
         contentValues.put("condition", condition)
+        contentValues.put("imageUrl", imageUrl)
         contentValues.put("userId", userId)
 
         return db.update(TABLE_LISTINGS, contentValues, "$COLUMN_ID = ?", arrayOf(id.toString()))
