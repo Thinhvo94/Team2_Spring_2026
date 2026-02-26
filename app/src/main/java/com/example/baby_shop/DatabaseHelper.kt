@@ -23,7 +23,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     companion object {
         private const val DATABASE_NAME = "ListingsDatabase.db"
-        private const val DATABASE_VERSION = 2
+        private const val DATABASE_VERSION = 4
 
         // Table Names
         private const val TABLE_USERS = "users"
@@ -72,6 +72,14 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         sampleUser.put("role", "user")
         val userId = db.insert(TABLE_USERS, null, sampleUser)
 
+        // Add user thinh.vo@gmail.com
+        val thinhUser = ContentValues()
+        thinhUser.put("name", "Thinh Vo")
+        thinhUser.put("email", "thinh.vo@gmail.com")
+        thinhUser.put("password", "123")
+        thinhUser.put("role", "user")
+        val thinhUserId = db.insert(TABLE_USERS, null, thinhUser)
+
         // Add sample listings for the user
         if (userId != -1L) {
             val sampleData = ContentValues()
@@ -94,12 +102,55 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             sampleData.put("userId", userId)
             db.insert(TABLE_LISTINGS, null, sampleData)
         }
+
+        // Add some listings for Thinh Vo
+        if (thinhUserId != -1L) {
+            val thinhData = ContentValues()
+            thinhData.put("title", "Baby Shoes")
+            thinhData.put("description", "Soft shoes for newborns.")
+            thinhData.put("price", "$20.00")
+            thinhData.put("category", "Clothing")
+            thinhData.put("condition", "New")
+            thinhData.put("imageUrl", "baby_shoes")
+            thinhData.put("userId", thinhUserId)
+            db.insert(TABLE_LISTINGS, null, thinhData)
+        }
     }
 
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) {
             db.execSQL("ALTER TABLE $TABLE_LISTINGS ADD COLUMN imageUrl TEXT;")
+        }
+        if (oldVersion < 3) {
+            val thinhUser = ContentValues()
+            thinhUser.put("name", "Thinh Vo")
+            thinhUser.put("email", "thinh.vo@gmail.com")
+            thinhUser.put("password", "123")
+            thinhUser.put("role", "user")
+            db.insert(TABLE_USERS, null, thinhUser)
+        }
+        if (oldVersion < 4) {
+            // Re-insert or update to ensure thinh.vo@gmail.com exists with correct email
+            db.delete(TABLE_USERS, "email = ?", arrayOf("thinh.vo@gamil.com"))
+            val thinhUser = ContentValues()
+            thinhUser.put("name", "Thinh Vo")
+            thinhUser.put("email", "thinh.vo@gmail.com")
+            thinhUser.put("password", "123")
+            thinhUser.put("role", "user")
+            val thinhUserId = db.insert(TABLE_USERS, null, thinhUser)
+
+            if (thinhUserId != -1L) {
+                val thinhData = ContentValues()
+                thinhData.put("title", "Baby Shoes")
+                thinhData.put("description", "Soft shoes for newborns.")
+                thinhData.put("price", "$20.00")
+                thinhData.put("category", "Clothing")
+                thinhData.put("condition", "New")
+                thinhData.put("imageUrl", "baby_shoes")
+                thinhData.put("userId", thinhUserId)
+                db.insert(TABLE_LISTINGS, null, thinhData)
+            }
         }
     }
 
@@ -116,6 +167,19 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         val result = db.insert(TABLE_USERS, null, values)
         db.close()
         return result
+    }
+
+    @SuppressLint("Range")
+    fun checkUser(email: String, pass: String): Long {
+        val db = this.readableDatabase
+        val cursor = db.rawQuery("SELECT $COLUMN_ID FROM $TABLE_USERS WHERE email = ? AND password = ?", arrayOf(email, pass))
+        var userId: Long = -1
+        if (cursor.moveToFirst()) {
+            userId = cursor.getLong(cursor.getColumnIndex(COLUMN_ID))
+        }
+        cursor.close()
+        db.close()
+        return userId
     }
 
     fun addListing(title: String, description: String, price: String, category: String, condition: String, imageUrl: String, userId: Long): Long {
@@ -140,6 +204,32 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         val productList = mutableListOf<Product>()
         val db = this.readableDatabase
         val cursor: Cursor = db.rawQuery("SELECT * FROM $TABLE_LISTINGS", null)
+
+        if (cursor.moveToFirst()) {
+            do {
+                val product = Product(
+                    id = cursor.getLong(cursor.getColumnIndex(COLUMN_ID)),
+                    title = cursor.getString(cursor.getColumnIndex("title")),
+                    description = cursor.getString(cursor.getColumnIndex("description")),
+                    price = cursor.getString(cursor.getColumnIndex("price")),
+                    category = cursor.getString(cursor.getColumnIndex("category")),
+                    condition = cursor.getString(cursor.getColumnIndex("condition")),
+                    imageUrl = cursor.getString(cursor.getColumnIndex("imageUrl")) ?: "",
+                    userId = cursor.getLong(cursor.getColumnIndex("userId"))
+                )
+                productList.add(product)
+            } while (cursor.moveToNext())
+        }
+        cursor.close()
+        db.close()
+        return productList
+    }
+
+    @SuppressLint("Range")
+    fun getListingsByUser(userId: Long): List<Product> {
+        val productList = mutableListOf<Product>()
+        val db = this.readableDatabase
+        val cursor: Cursor = db.rawQuery("SELECT * FROM $TABLE_LISTINGS WHERE userId = ?", arrayOf(userId.toString()))
 
         if (cursor.moveToFirst()) {
             do {

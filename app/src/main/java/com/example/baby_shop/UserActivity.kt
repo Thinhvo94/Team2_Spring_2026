@@ -1,6 +1,5 @@
 package com.example.baby_shop
 
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -30,18 +29,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import com.example.baby_shop.ui.theme.Baby_ShopTheme
 
-class MainActivity : ComponentActivity() {
+class UserActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val userId = intent.getLongExtra("USER_ID", -1L)
         enableEdgeToEdge()
         setContent {
             Baby_ShopTheme {
-                MainApp()
+                UserApp(userId)
             }
         }
     }
@@ -49,8 +46,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainApp() {
-    val context = LocalContext.current
+fun UserApp(userId: Long) {
     var selectedItem by remember { mutableStateOf(0) }
     val items = listOf("Shop", "My Item", "Account")
     var searchText by remember { mutableStateOf("") }
@@ -78,17 +74,12 @@ fun MainApp() {
                                 "Shop" -> Icon(Icons.Filled.Home, contentDescription = "Shop")
                                 "My Item" -> Icon(Icons.Filled.ShoppingCart, contentDescription = "My Item/Cart")
                                 "Account" -> Icon(Icons.Filled.AccountCircle, contentDescription = "Account")
-                                else -> Icon(Icons.Filled.Home, contentDescription = null)
                             }
                         },
                         label = { Text(item) },
                         selected = selectedItem == index,
                         onClick = {
                             selectedItem = index
-                            if (item == "Account") {
-                                val intent = Intent(context, LoginActivity::class.java)
-                                context.startActivity(intent)
-                            }
                         }
                     )
                 }
@@ -104,17 +95,9 @@ fun MainApp() {
         ) {
             when (selectedItem) {
                 0 -> ProductListCommon(null)
-                1 -> Text("Login to see your items")
-                else -> Text("Account Settings")
+                1 -> ProductListCommon(userId)
+                else -> Text("Account Info for User ID: $userId")
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    Baby_ShopTheme {
-        MainApp()
     }
 }

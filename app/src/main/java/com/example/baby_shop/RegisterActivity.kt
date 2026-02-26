@@ -5,45 +5,55 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.baby_shop.ui.theme.Baby_ShopTheme
 
 class RegisterActivity : ComponentActivity() {
-    // Khởi tạo DatabaseHelper
-    private lateinit var db: DatabaseHelper
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        db = DatabaseHelper(this)
-
         setContent {
             Baby_ShopTheme {
-                // Truyền instance của db vào Composable
-                RegisterScreen(dbHelper = db)
+                RegisterScreen()
             }
         }
     }
 }
 
 @Composable
-fun RegisterScreen(dbHelper: DatabaseHelper) {
-    // Các biến để lưu trạng thái của các trường nhập liệu
+fun RegisterScreen() {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     val context = LocalContext.current
+    val dbHelper = remember { DatabaseHelper(context) }
 
     Column(
         modifier = Modifier
@@ -56,7 +66,6 @@ fun RegisterScreen(dbHelper: DatabaseHelper) {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Trường nhập liệu cho Tên (Name)
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
@@ -66,7 +75,6 @@ fun RegisterScreen(dbHelper: DatabaseHelper) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Trường nhập liệu cho Email
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
@@ -77,7 +85,6 @@ fun RegisterScreen(dbHelper: DatabaseHelper) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Trường nhập liệu cho Mật khẩu (Password)
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
@@ -89,26 +96,20 @@ fun RegisterScreen(dbHelper: DatabaseHelper) {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Nút Đăng ký
         Button(
             onClick = {
-                // Kiểm tra xem các trường có trống không
                 if (name.isNotEmpty() && email.isNotEmpty() && password.isNotEmpty()) {
-                    // Gọi hàm addUser từ DatabaseHelper để thêm người dùng
-                    val result = dbHelper.addUser(name, email, password, "user") // Mặc định role là 'user'
+                    val result = dbHelper.addUser(name, email, password, "user")
 
                     if (result != -1L) {
-                        // Nếu thêm thành công
                         Toast.makeText(context, "Registration Successful!", Toast.LENGTH_SHORT).show()
-                        // Tùy chọn: Chuyển người dùng về màn hình đăng nhập
                         val intent = Intent(context, LoginActivity::class.java)
                         context.startActivity(intent)
+                        (context as? ComponentActivity)?.finish()
                     } else {
-                        // Nếu thêm thất bại (ví dụ: email đã tồn tại nếu bạn cài đặt UNIQUE)
                         Toast.makeText(context, "Registration Failed. Email might already exist.", Toast.LENGTH_LONG).show()
                     }
                 } else {
-                    // Nếu có trường nào đó bị bỏ trống
                     Toast.makeText(context, "Please fill in all fields.", Toast.LENGTH_SHORT).show()
                 }
             },
@@ -118,14 +119,44 @@ fun RegisterScreen(dbHelper: DatabaseHelper) {
         ) {
             Text("Register")
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        LoginNavigation()
     }
+}
+
+@Composable
+fun LoginNavigation() {
+    val context = LocalContext.current
+    val annotatedText = buildAnnotatedString {
+        append("Already have an account? ")
+        pushStringAnnotation(tag = "LOGIN", annotation = "login")
+        withStyle(
+            style = SpanStyle(
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                textDecoration = TextDecoration.Underline
+            )
+        ) {
+            append("Login")
+        }
+        pop()
+    }
+
+    Text(
+        text = annotatedText,
+        modifier = Modifier.noRippleClickable {
+            val intent = Intent(context, LoginActivity::class.java)
+            context.startActivity(intent)
+        }
+    )
 }
 
 @Preview(showBackground = true)
 @Composable
 fun RegisterScreenPreview() {
     Baby_ShopTheme {
-        val context = LocalContext.current
-        RegisterScreen(dbHelper = DatabaseHelper(context))
+        RegisterScreen()
     }
 }
