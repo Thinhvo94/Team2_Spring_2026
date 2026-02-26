@@ -19,12 +19,20 @@ data class Product(
     val quantity: Int = 1
 )
 
+data class User(
+    val id: Long,
+    val name: String,
+    val email: String,
+    val address: String?,
+    val paymentInfo: String?
+)
+
 // Extends SQLiteOpenHelper to manage DB
 class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
     companion object {
         private const val DATABASE_NAME = "ListingsDatabase.db"
-        private const val DATABASE_VERSION = 5
+        private const val DATABASE_VERSION = 6
 
         // Table Names
         private const val TABLE_USERS = "users"
@@ -34,16 +42,26 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         // Common column name
         private const val COLUMN_ID = "id"
         private const val COLUMN_QUANTITY = "quantity"
+        
+        // User columns
+        private const val COLUMN_NAME = "name"
+        private const val COLUMN_EMAIL = "email"
+        private const val COLUMN_PASSWORD = "password"
+        private const val COLUMN_ROLE = "role"
+        private const val COLUMN_ADDRESS = "address"
+        private const val COLUMN_PAYMENT_INFO = "payment_info"
     }
 
     override fun onCreate(db: SQLiteDatabase) {
 
         val createUsersTable = ("CREATE TABLE $TABLE_USERS (" +
                 "$COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "name TEXT, " +
-                "email TEXT, " +
-                "password TEXT, " +
-                "role TEXT)")
+                "$COLUMN_NAME TEXT, " +
+                "$COLUMN_EMAIL TEXT, " +
+                "$COLUMN_PASSWORD TEXT, " +
+                "$COLUMN_ROLE TEXT, " +
+                "$COLUMN_ADDRESS TEXT, " +
+                "$COLUMN_PAYMENT_INFO TEXT)")
         db.execSQL(createUsersTable)
 
         val createListingsTable = ("CREATE TABLE $TABLE_LISTINGS (" +
@@ -59,7 +77,6 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 "FOREIGN KEY(userId) REFERENCES $TABLE_USERS($COLUMN_ID))")
         db.execSQL(createListingsTable)
 
-
         val createCartTable = ("CREATE TABLE $TABLE_CART_ITEMS (" +
                 "$COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "listingId INTEGER, " +
@@ -69,18 +86,22 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
         // Add a sample user
         val sampleUser = ContentValues()
-        sampleUser.put("name", "Test User")
-        sampleUser.put("email", "test@example.com")
-        sampleUser.put("password", "password")
-        sampleUser.put("role", "user")
+        sampleUser.put(COLUMN_NAME, "Test User")
+        sampleUser.put(COLUMN_EMAIL, "test@example.com")
+        sampleUser.put(COLUMN_PASSWORD, "password")
+        sampleUser.put(COLUMN_ROLE, "user")
+        sampleUser.put(COLUMN_ADDRESS, "123 Street, City")
+        sampleUser.put(COLUMN_PAYMENT_INFO, "Visa **** 1234")
         val userId = db.insert(TABLE_USERS, null, sampleUser)
 
         // Add user thinh.vo@gmail.com
         val thinhUser = ContentValues()
-        thinhUser.put("name", "Thinh Vo")
-        thinhUser.put("email", "thinh.vo@gmail.com")
-        thinhUser.put("password", "123")
-        thinhUser.put("role", "user")
+        thinhUser.put(COLUMN_NAME, "Thinh Vo")
+        thinhUser.put(COLUMN_EMAIL, "thinh.vo@gmail.com")
+        thinhUser.put(COLUMN_PASSWORD, "123")
+        thinhUser.put(COLUMN_ROLE, "user")
+        thinhUser.put(COLUMN_ADDRESS, "Ho Chi Minh City, Vietnam")
+        thinhUser.put(COLUMN_PAYMENT_INFO, "Momo: 090xxxxxxx")
         val thinhUserId = db.insert(TABLE_USERS, null, thinhUser)
 
         // Add sample listings for the user
@@ -130,19 +151,19 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         }
         if (oldVersion < 3) {
             val thinhUser = ContentValues()
-            thinhUser.put("name", "Thinh Vo")
-            thinhUser.put("email", "thinh.vo@gmail.com")
-            thinhUser.put("password", "123")
-            thinhUser.put("role", "user")
+            thinhUser.put(COLUMN_NAME, "Thinh Vo")
+            thinhUser.put(COLUMN_EMAIL, "thinh.vo@gmail.com")
+            thinhUser.put(COLUMN_PASSWORD, "123")
+            thinhUser.put(COLUMN_ROLE, "user")
             db.insert(TABLE_USERS, null, thinhUser)
         }
         if (oldVersion < 4) {
-            db.delete(TABLE_USERS, "email = ?", arrayOf("thinh.vo@gamil.com"))
+            db.delete(TABLE_USERS, "$COLUMN_EMAIL = ?", arrayOf("thinh.vo@gamil.com"))
             val thinhUser = ContentValues()
-            thinhUser.put("name", "Thinh Vo")
-            thinhUser.put("email", "thinh.vo@gmail.com")
-            thinhUser.put("password", "123")
-            thinhUser.put("role", "user")
+            thinhUser.put(COLUMN_NAME, "Thinh Vo")
+            thinhUser.put(COLUMN_EMAIL, "thinh.vo@gmail.com")
+            thinhUser.put(COLUMN_PASSWORD, "123")
+            thinhUser.put(COLUMN_ROLE, "user")
             val thinhUserId = db.insert(TABLE_USERS, null, thinhUser)
 
             if (thinhUserId != -1L) {
@@ -160,6 +181,16 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         if (oldVersion < 5) {
             db.execSQL("ALTER TABLE $TABLE_LISTINGS ADD COLUMN $COLUMN_QUANTITY INTEGER DEFAULT 1;")
         }
+        if (oldVersion < 6) {
+            db.execSQL("ALTER TABLE $TABLE_USERS ADD COLUMN $COLUMN_ADDRESS TEXT;")
+            db.execSQL("ALTER TABLE $TABLE_USERS ADD COLUMN $COLUMN_PAYMENT_INFO TEXT;")
+            
+            // Update existing users with some default data for demonstration
+            val values = ContentValues()
+            values.put(COLUMN_ADDRESS, "Update your address")
+            values.put(COLUMN_PAYMENT_INFO, "Update your payment info")
+            db.update(TABLE_USERS, values, null, null)
+        }
     }
 
 
@@ -167,10 +198,12 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     fun addUser(name: String, email: String, pass: String, role: String): Long {
         val db = this.writableDatabase
         val values = ContentValues().apply {
-            put("name", name)
-            put("email", email)
-            put("password", pass)
-            put("role", role)
+            put(COLUMN_NAME, name)
+            put(COLUMN_EMAIL, email)
+            put(COLUMN_PASSWORD, pass)
+            put(COLUMN_ROLE, role)
+            put(COLUMN_ADDRESS, "Update your address")
+            put(COLUMN_PAYMENT_INFO, "Update your payment info")
         }
         val result = db.insert(TABLE_USERS, null, values)
         db.close()
@@ -180,7 +213,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     @SuppressLint("Range")
     fun checkUser(email: String, pass: String): Long {
         val db = this.readableDatabase
-        val cursor = db.rawQuery("SELECT $COLUMN_ID FROM $TABLE_USERS WHERE email = ? AND password = ?", arrayOf(email, pass))
+        val cursor = db.rawQuery("SELECT $COLUMN_ID FROM $TABLE_USERS WHERE $COLUMN_EMAIL = ? AND $COLUMN_PASSWORD = ?", arrayOf(email, pass))
         var userId: Long = -1
         if (cursor.moveToFirst()) {
             userId = cursor.getLong(cursor.getColumnIndex(COLUMN_ID))
@@ -188,6 +221,43 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         cursor.close()
         db.close()
         return userId
+    }
+
+    @SuppressLint("Range")
+    fun getUserById(userId: Long): User? {
+        val db = this.readableDatabase
+        val cursor = db.rawQuery("SELECT * FROM $TABLE_USERS WHERE $COLUMN_ID = ?", arrayOf(userId.toString()))
+        var user: User? = null
+        if (cursor.moveToFirst()) {
+            user = User(
+                id = cursor.getLong(cursor.getColumnIndex(COLUMN_ID)),
+                name = cursor.getString(cursor.getColumnIndex(COLUMN_NAME)),
+                email = cursor.getString(cursor.getColumnIndex(COLUMN_EMAIL)),
+                address = cursor.getString(cursor.getColumnIndex(COLUMN_ADDRESS)),
+                paymentInfo = cursor.getString(cursor.getColumnIndex(COLUMN_PAYMENT_INFO))
+            )
+        }
+        cursor.close()
+        db.close()
+        return user
+    }
+
+    fun updateUserAddress(userId: Long, address: String): Int {
+        val db = this.writableDatabase
+        val values = ContentValues()
+        values.put(COLUMN_ADDRESS, address)
+        val result = db.update(TABLE_USERS, values, "$COLUMN_ID = ?", arrayOf(userId.toString()))
+        db.close()
+        return result
+    }
+
+    fun updateUserPaymentInfo(userId: Long, paymentInfo: String): Int {
+        val db = this.writableDatabase
+        val values = ContentValues()
+        values.put(COLUMN_PAYMENT_INFO, paymentInfo)
+        val result = db.update(TABLE_USERS, values, "$COLUMN_ID = ?", arrayOf(userId.toString()))
+        db.close()
+        return result
     }
 
     fun addListing(title: String, description: String, price: String, category: String, condition: String, imageUrl: String, userId: Long, quantity: Int = 1): Long {

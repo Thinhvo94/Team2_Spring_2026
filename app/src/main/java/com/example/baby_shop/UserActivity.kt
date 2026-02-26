@@ -2,6 +2,7 @@ package com.example.baby_shop
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
@@ -47,23 +48,30 @@ class UserActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserApp(userId: Long) {
+    // Chặn nút back để không quay lại màn hình Login
+    BackHandler(enabled = true) {
+        // Có thể để trống để không làm gì (chặn hoàn toàn)
+    }
+
     var selectedItem by remember { mutableStateOf(0) }
     val items = listOf("Shop", "My Item", "Account")
     var searchText by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    TextField(
-                        value = searchText,
-                        onValueChange = { searchText = it },
-                        placeholder = { Text("Search product...") },
-                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            )
+            if (selectedItem != 2) { // Ẩn Search bar khi đang ở tab Account (index 2)
+                TopAppBar(
+                    title = {
+                        TextField(
+                            value = searchText,
+                            onValueChange = { searchText = it },
+                            placeholder = { Text("Search product...") },
+                            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                )
+            }
         },
         bottomBar = {
             NavigationBar {
@@ -96,7 +104,7 @@ fun UserApp(userId: Long) {
             when (selectedItem) {
                 0 -> ProductListCommon(loggedInUserId = userId, filterByUserId = null)
                 1 -> ProductListCommon(loggedInUserId = userId, filterByUserId = userId)
-                else -> Text("Account Info for User ID: $userId")
+                else -> AccountScreen(userId = userId)
             }
         }
     }

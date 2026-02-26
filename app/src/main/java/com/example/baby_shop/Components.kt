@@ -1,7 +1,7 @@
 package com.example.baby_shop
 
+import android.app.Activity
 import android.content.Intent
-import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -9,13 +9,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -24,88 +25,23 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-@Composable
-fun ProductItem(
-    product: Product,
-    showQuantityControls: Boolean = false,
-    onIncrease: () -> Unit = {},
-    onDecrease: () -> Unit = {},
-    onClick: () -> Unit
-) {
-    val context = LocalContext.current
-    val imageResId = remember(product.imageUrl) {
-        if (product.imageUrl != null) {
-            val id = context.resources.getIdentifier(product.imageUrl, "drawable", context.packageName)
-            if (id != 0) id else R.drawable.ic_launcher_background
-        } else {
-            R.drawable.ic_launcher_background
-        }
-    }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp)
-            .clickable(onClick = onClick)
+fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier = composed {
+    this.clickable(
+        indication = null,
+        interactionSource = remember { MutableInteractionSource() }
     ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Image(
-                painter = painterResource(id = imageResId),
-                contentDescription = product.title,
-                modifier = Modifier.size(80.dp)
-            )
-            
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 16.dp)
-            ) {
-                Text(text = product.title, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Text(text = product.description, maxLines = 1)
-                Text(text = "Price: ${product.price}", fontWeight = FontWeight.Bold)
-            }
-
-            if (showQuantityControls) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onDecrease) {
-                        Icon(
-                            imageVector = if (product.quantity > 1) Icons.Default.Delete else Icons.Default.Delete,
-                            contentDescription = "Decrease",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                    Text(text = product.quantity.toString(), fontWeight = FontWeight.Bold)
-                    IconButton(onClick = onIncrease) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Increase",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-        }
+        onClick()
     }
 }
 
 @Composable
-fun ProductListCommon(loggedInUserId: Long? = null, filterByUserId: Long? = null) {
+fun ProductListCommon(loggedInUserId: Long, filterByUserId: Long?) {
     val context = LocalContext.current
     val dbHelper = remember { DatabaseHelper(context) }
-    var productList by remember { mutableStateOf<List<Product>>(emptyList()) }
-    var showDialog by remember { mutableStateOf(false) }
-    var selectedProduct by remember { mutableStateOf<Product?>(null) }
-    var refreshTrigger by remember { mutableStateOf(0) }
+    var products by remember { mutableStateOf<List<Product>>(emptyList()) }
 
-    LaunchedEffect(filterByUserId, refreshTrigger) {
-        productList = withContext(Dispatchers.IO) {
+    LaunchedEffect(Unit) {
+        products = withContext(Dispatchers.IO) {
             if (filterByUserId != null) {
                 dbHelper.getListingsByUser(filterByUserId)
             } else {
@@ -114,104 +50,152 @@ fun ProductListCommon(loggedInUserId: Long? = null, filterByUserId: Long? = null
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        if (filterByUserId != null && productList.isNotEmpty()) {
-            Button(
-                onClick = {
-                    val intent = Intent(context, CheckoutActivity::class.java)
-                    intent.putExtra("USER_ID", filterByUserId)
-                    context.startActivity(intent)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                Text("Process to Checkout (${productList.sumOf { it.quantity }} items)")
-            }
+    if (products.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("No products found.")
         }
-
-        if (showDialog && selectedProduct != null) {
-            AlertDialog(
-                onDismissRequest = { showDialog = false },
-                title = { Text("Confirm Purchase") },
-                text = { Text("Bạn muốn mua mặt hàng '${selectedProduct?.title}' này?") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showDialog = false
-                            selectedProduct?.let { product ->
-                                if (loggedInUserId != null) {
-                                    // Check if product already exists in user's cart
-                                    val existingProduct = dbHelper.getListingByUserAndTitle(loggedInUserId, product.title)
-                                    if (existingProduct != null) {
-                                        dbHelper.updateQuantity(existingProduct.id, existingProduct.quantity + 1)
-                                        Toast.makeText(context, "Increased quantity in My Items!", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        dbHelper.addListing(
-                                            product.title,
-                                            product.description,
-                                            product.price,
-                                            product.category,
-                                            product.condition,
-                                            product.imageUrl ?: "",
-                                            loggedInUserId,
-                                            1
-                                        )
-                                        Toast.makeText(context, "Added to My Items!", Toast.LENGTH_SHORT).show()
-                                    }
-                                    refreshTrigger++
-                                } else {
-                                    Toast.makeText(context, "Please login to buy!", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        }
-                    ) {
-                        Text("Yes")
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = { showDialog = false }
-                    ) {
-                        Text("No")
-                    }
-                }
-            )
-        }
-
-        LazyColumn(modifier = Modifier.weight(1f)) {
-            items(productList) { product ->
-                ProductItem(
-                    product = product,
-                    showQuantityControls = filterByUserId != null,
-                    onIncrease = {
-                        dbHelper.updateQuantity(product.id, product.quantity + 1)
-                        refreshTrigger++
-                    },
-                    onDecrease = {
-                        if (product.quantity > 1) {
-                            dbHelper.updateQuantity(product.id, product.quantity - 1)
-                        } else {
-                            dbHelper.deleteListing(product.id)
-                        }
-                        refreshTrigger++
-                    },
-                    onClick = {
-                        if (filterByUserId == null) { // Only show dialog in main shop
-                            selectedProduct = product
-                            showDialog = true
-                        }
-                    }
-                )
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(products) { product ->
+                ProductItem(product, loggedInUserId)
             }
         }
     }
 }
 
-fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier = composed {
-    this.clickable(
-        interactionSource = remember { MutableInteractionSource() },
-        indication = null,
-        onClick = onClick
-    )
+@Composable
+fun ProductItem(product: Product, loggedInUserId: Long) {
+    val context = LocalContext.current
+    val dbHelper = remember { DatabaseHelper(context) }
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Simulated Image
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+                    .padding(bottom = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                val imageResId = context.resources.getIdentifier(product.imageUrl, "drawable", context.packageName)
+                if (imageResId != 0) {
+                    Image(
+                        painter = painterResource(id = imageResId),
+                        contentDescription = product.title,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text("Image not found", color = Color.Gray)
+                }
+            }
+
+            Text(text = product.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(text = product.price, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
+            Text(text = "Condition: ${product.condition}", style = MaterialTheme.typography.bodyMedium)
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            if (product.userId == loggedInUserId) {
+                Button(
+                    onClick = { /* Edit logic */ },
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Edit My Listing")
+                }
+            } else {
+                Button(
+                    onClick = {
+                        val intent = Intent(context, CheckoutActivity::class.java).apply {
+                            putExtra("USER_ID", loggedInUserId)
+                        }
+                        context.startActivity(intent)
+                    },
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Buy Now")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AccountScreen(userId: Long) {
+    val context = LocalContext.current
+    val dbHelper = remember { DatabaseHelper(context) }
+    var user by remember { mutableStateOf<User?>(null) }
+
+    LaunchedEffect(userId) {
+        user = withContext(Dispatchers.IO) {
+            dbHelper.getUserById(userId)
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = "Profile Information", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            
+            IconButton(onClick = {
+                val intent = Intent(context, MainActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                context.startActivity(intent)
+                (context as? Activity)?.finish()
+            }) {
+                Icon(Icons.Default.ExitToApp, contentDescription = "Logout", tint = Color.Red)
+            }
+        }
+
+        user?.let {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    InfoRow(label = "Full Name", value = it.name)
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    InfoRow(label = "Email Address", value = it.email)
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    InfoRow(label = "Shipping Address", value = it.address ?: "Not set")
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    InfoRow(label = "Payment Method", value = it.paymentInfo ?: "Not set")
+                }
+            }
+        } ?: Text("Loading user info...")
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Button(
+            onClick = { /* Edit logic */ },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Edit Profile")
+        }
+    }
+}
+
+@Composable
+fun InfoRow(label: String, value: String) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        Text(text = value, style = MaterialTheme.typography.bodyLarge)
+    }
 }

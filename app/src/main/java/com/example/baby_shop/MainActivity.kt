@@ -103,7 +103,7 @@ fun MainApp() {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             when (selectedItem) {
-                0 -> ProductListCommon(null)
+                0 -> ProductListCommon(loggedInUserId = -1L, filterByUserId = null)
                 1 -> Text("Login to see your items")
                 else -> Text("Account Settings")
             }

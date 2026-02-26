@@ -5,9 +5,8 @@ plugins {
 }
 
 android {
-    // ... (rest of the android block is unchanged)
     namespace = "com.example.baby_shop"
-    compileSdk = 36 // This assumes release(36) resolves to 36
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.baby_shop"
@@ -49,8 +48,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.icons.extended) // Add this for Icons.Default.Remove
 
-    implementation(libs.material) // <--- Add this line
+    implementation(libs.material)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
