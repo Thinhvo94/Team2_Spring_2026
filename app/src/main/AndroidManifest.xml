@@ -41,6 +41,12 @@
             android:label="User Home"
             android:theme="@style/Theme.Baby_Shop" />
 
+        <activity
+            android:name=".CheckoutActivity"
+            android:exported="false"
+            android:label="Checkout"
+            android:theme="@style/Theme.Baby_Shop" />
+
     </application>
 
 </manifest>

@@ -15,7 +15,8 @@ data class Product(
     val category: String,
     val condition: String,
     val userId: Long,
-    val imageUrl: String?
+    val imageUrl: String?,
+    val quantity: Int = 1
 )
 
 // Extends SQLiteOpenHelper to manage DB
@@ -23,7 +24,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     companion object {
         private const val DATABASE_NAME = "ListingsDatabase.db"
-        private const val DATABASE_VERSION = 4
+        private const val DATABASE_VERSION = 5
 
         // Table Names
         private const val TABLE_USERS = "users"
@@ -32,6 +33,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
         // Common column name
         private const val COLUMN_ID = "id"
+        private const val COLUMN_QUANTITY = "quantity"
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -53,6 +55,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 "condition TEXT, " +
                 "imageUrl TEXT, " +
                 "userId INTEGER, " +
+                "$COLUMN_QUANTITY INTEGER DEFAULT 1, " +
                 "FOREIGN KEY(userId) REFERENCES $TABLE_USERS($COLUMN_ID))")
         db.execSQL(createListingsTable)
 
@@ -90,6 +93,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             sampleData.put("condition", "New")
             sampleData.put("imageUrl", "baby_pram")
             sampleData.put("userId", userId)
+            sampleData.put(COLUMN_QUANTITY, 1)
             db.insert(TABLE_LISTINGS, null, sampleData)
 
             sampleData.clear()
@@ -100,6 +104,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             sampleData.put("condition", "New")
             sampleData.put("imageUrl", "baby_crib")
             sampleData.put("userId", userId)
+            sampleData.put(COLUMN_QUANTITY, 1)
             db.insert(TABLE_LISTINGS, null, sampleData)
         }
 
@@ -113,6 +118,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             thinhData.put("condition", "New")
             thinhData.put("imageUrl", "baby_shoes")
             thinhData.put("userId", thinhUserId)
+            thinhData.put(COLUMN_QUANTITY, 1)
             db.insert(TABLE_LISTINGS, null, thinhData)
         }
     }
@@ -131,7 +137,6 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             db.insert(TABLE_USERS, null, thinhUser)
         }
         if (oldVersion < 4) {
-            // Re-insert or update to ensure thinh.vo@gmail.com exists with correct email
             db.delete(TABLE_USERS, "email = ?", arrayOf("thinh.vo@gamil.com"))
             val thinhUser = ContentValues()
             thinhUser.put("name", "Thinh Vo")
@@ -151,6 +156,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 thinhData.put("userId", thinhUserId)
                 db.insert(TABLE_LISTINGS, null, thinhData)
             }
+        }
+        if (oldVersion < 5) {
+            db.execSQL("ALTER TABLE $TABLE_LISTINGS ADD COLUMN $COLUMN_QUANTITY INTEGER DEFAULT 1;")
         }
     }
 
@@ -182,7 +190,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return userId
     }
 
-    fun addListing(title: String, description: String, price: String, category: String, condition: String, imageUrl: String, userId: Long): Long {
+    fun addListing(title: String, description: String, price: String, category: String, condition: String, imageUrl: String, userId: Long, quantity: Int = 1): Long {
         val db = this.writableDatabase
         val contentValues = ContentValues()
         contentValues.put("title", title)
@@ -192,6 +200,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         contentValues.put("condition", condition)
         contentValues.put("imageUrl", imageUrl)
         contentValues.put("userId", userId)
+        contentValues.put(COLUMN_QUANTITY, quantity)
 
         val success = db.insert(TABLE_LISTINGS, null, contentValues)
         db.close()
@@ -215,7 +224,8 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                     category = cursor.getString(cursor.getColumnIndex("category")),
                     condition = cursor.getString(cursor.getColumnIndex("condition")),
                     imageUrl = cursor.getString(cursor.getColumnIndex("imageUrl")) ?: "",
-                    userId = cursor.getLong(cursor.getColumnIndex("userId"))
+                    userId = cursor.getLong(cursor.getColumnIndex("userId")),
+                    quantity = cursor.getInt(cursor.getColumnIndex(COLUMN_QUANTITY))
                 )
                 productList.add(product)
             } while (cursor.moveToNext())
@@ -241,7 +251,8 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                     category = cursor.getString(cursor.getColumnIndex("category")),
                     condition = cursor.getString(cursor.getColumnIndex("condition")),
                     imageUrl = cursor.getString(cursor.getColumnIndex("imageUrl")) ?: "",
-                    userId = cursor.getLong(cursor.getColumnIndex("userId"))
+                    userId = cursor.getLong(cursor.getColumnIndex("userId")),
+                    quantity = cursor.getInt(cursor.getColumnIndex(COLUMN_QUANTITY))
                 )
                 productList.add(product)
             } while (cursor.moveToNext())
@@ -252,7 +263,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     }
 
     // UPDATE
-    fun updateListing(id: Int, title: String, description: String, price: String, condition: String, imageUrl: String, userId: Long): Int {
+    fun updateListing(id: Long, title: String, description: String, price: String, condition: String, imageUrl: String, userId: Long): Int {
         val db = this.writableDatabase
         val contentValues = ContentValues()
         contentValues.put("title", title)
@@ -265,9 +276,43 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return db.update(TABLE_LISTINGS, contentValues, "$COLUMN_ID = ?", arrayOf(id.toString()))
     }
 
-    // DELETE
-    fun deleteListing(id: Int): Int {
+    fun updateQuantity(id: Long, newQuantity: Int): Int {
         val db = this.writableDatabase
-        return db.delete(TABLE_LISTINGS, "$COLUMN_ID = ?", arrayOf(id.toString()))
+        val contentValues = ContentValues()
+        contentValues.put(COLUMN_QUANTITY, newQuantity)
+        val result = db.update(TABLE_LISTINGS, contentValues, "$COLUMN_ID = ?", arrayOf(id.toString()))
+        db.close()
+        return result
+    }
+
+    // DELETE
+    fun deleteListing(id: Long): Int {
+        val db = this.writableDatabase
+        val result = db.delete(TABLE_LISTINGS, "$COLUMN_ID = ?", arrayOf(id.toString()))
+        db.close()
+        return result
+    }
+
+    @SuppressLint("Range")
+    fun getListingByUserAndTitle(userId: Long, title: String): Product? {
+        val db = this.readableDatabase
+        val cursor = db.rawQuery("SELECT * FROM $TABLE_LISTINGS WHERE userId = ? AND title = ?", arrayOf(userId.toString(), title))
+        var product: Product? = null
+        if (cursor.moveToFirst()) {
+            product = Product(
+                id = cursor.getLong(cursor.getColumnIndex(COLUMN_ID)),
+                title = cursor.getString(cursor.getColumnIndex("title")),
+                description = cursor.getString(cursor.getColumnIndex("description")),
+                price = cursor.getString(cursor.getColumnIndex("price")),
+                category = cursor.getString(cursor.getColumnIndex("category")),
+                condition = cursor.getString(cursor.getColumnIndex("condition")),
+                imageUrl = cursor.getString(cursor.getColumnIndex("imageUrl")) ?: "",
+                userId = cursor.getLong(cursor.getColumnIndex("userId")),
+                quantity = cursor.getInt(cursor.getColumnIndex(COLUMN_QUANTITY))
+            )
+        }
+        cursor.close()
+        db.close()
+        return product
     }
 }

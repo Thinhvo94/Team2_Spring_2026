@@ -94,8 +94,8 @@ fun UserApp(userId: Long) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             when (selectedItem) {
-                0 -> ProductListCommon(null)
-                1 -> ProductListCommon(userId)
+                0 -> ProductListCommon(loggedInUserId = userId, filterByUserId = null)
+                1 -> ProductListCommon(loggedInUserId = userId, filterByUserId = userId)
                 else -> Text("Account Info for User ID: $userId")
             }
         }
