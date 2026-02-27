@@ -39,8 +39,11 @@ fun ProductListCommon(loggedInUserId: Long, filterByUserId: Long?) {
     val context = LocalContext.current
     val dbHelper = remember { DatabaseHelper(context) }
     var products by remember { mutableStateOf<List<Product>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
 
-    LaunchedEffect(Unit) {
+    // Load data from Database
+    LaunchedEffect(filterByUserId) {
+        isLoading = true
         products = withContext(Dispatchers.IO) {
             if (filterByUserId != null) {
                 dbHelper.getListingsByUser(filterByUserId)
@@ -48,9 +51,14 @@ fun ProductListCommon(loggedInUserId: Long, filterByUserId: Long?) {
                 dbHelper.getAllListings()
             }
         }
+        isLoading = false
     }
 
-    if (products.isEmpty()) {
+    if (isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    } else if (products.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("No products found.")
         }
@@ -70,14 +78,13 @@ fun ProductListCommon(loggedInUserId: Long, filterByUserId: Long?) {
 @Composable
 fun ProductItem(product: Product, loggedInUserId: Long) {
     val context = LocalContext.current
-    val dbHelper = remember { DatabaseHelper(context) }
     
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Simulated Image
+            // Product Image Handling
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -85,7 +92,12 @@ fun ProductItem(product: Product, loggedInUserId: Long) {
                     .padding(bottom = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
-                val imageResId = context.resources.getIdentifier(product.imageUrl, "drawable", context.packageName)
+                val imageResId = if (!product.imageUrl.isNullOrEmpty()) {
+                    context.resources.getIdentifier(product.imageUrl, "drawable", context.packageName)
+                } else {
+                    0
+                }
+
                 if (imageResId != 0) {
                     Image(
                         painter = painterResource(id = imageResId),
@@ -94,7 +106,13 @@ fun ProductItem(product: Product, loggedInUserId: Long) {
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    Text("Image not found", color = Color.Gray)
+                    // Placeholder if image not found
+                    Icon(
+                        painter = painterResource(id = android.R.drawable.ic_menu_gallery),
+                        contentDescription = "No Image",
+                        modifier = Modifier.size(64.dp),
+                        tint = Color.LightGray
+                    )
                 }
             }
 
@@ -106,7 +124,7 @@ fun ProductItem(product: Product, loggedInUserId: Long) {
             
             if (product.userId == loggedInUserId) {
                 Button(
-                    onClick = { /* Edit logic */ },
+                    onClick = { /* Navigate to Edit Listing */ },
                     modifier = Modifier.align(Alignment.End)
                 ) {
                     Text("Edit My Listing")
@@ -116,6 +134,7 @@ fun ProductItem(product: Product, loggedInUserId: Long) {
                     onClick = {
                         val intent = Intent(context, CheckoutActivity::class.java).apply {
                             putExtra("USER_ID", loggedInUserId)
+                            putExtra("PRODUCT_ID", product.id)
                         }
                         context.startActivity(intent)
                     },
@@ -179,12 +198,14 @@ fun AccountScreen(userId: Long) {
                     InfoRow(label = "Payment Method", value = it.paymentInfo ?: "Not set")
                 }
             }
-        } ?: Text("Loading user info...")
+        } ?: Box(modifier = Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
 
         Spacer(modifier = Modifier.weight(1f))
 
         Button(
-            onClick = { /* Edit logic */ },
+            onClick = { /* Navigate to Edit Profile */ },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Edit Profile")

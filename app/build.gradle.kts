@@ -39,6 +39,11 @@ android {
     }
 }
 
+// Add this to fix the "task 'testClasses' not found" error
+tasks.register("testClasses") {
+    dependsOn("compileDebugUnitTestSources")
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -48,7 +53,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.icons.extended) // Add this for Icons.Default.Remove
+    implementation(libs.androidx.compose.icons.extended)
 
     implementation(libs.material)
 

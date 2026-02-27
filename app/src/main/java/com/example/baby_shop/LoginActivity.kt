@@ -91,9 +91,16 @@ fun LoginScreen() {
             onClick = {
                 val userId = dbHelper.checkUser(email, password)
                 if (userId != -1L) {
-                    val intent = Intent(context, UserActivity::class.java)
-                    intent.putExtra("USER_ID", userId)
-                    context.startActivity(intent)
+                    val role = dbHelper.getUserRole(userId)
+                    if (role == "admin") {
+                        val intent = Intent(context, AdminActivity::class.java)
+                        intent.putExtra("USER_ID", userId)
+                        context.startActivity(intent)
+                    } else {
+                        val intent = Intent(context, UserActivity::class.java)
+                        intent.putExtra("USER_ID", userId)
+                        context.startActivity(intent)
+                    }
                 } else {
                     Toast.makeText(context, "Wrong UserName Or Password. Please try again.", Toast.LENGTH_SHORT).show()
                 }
